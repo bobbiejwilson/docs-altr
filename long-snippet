@@ -1,3 +1,4 @@
+<pre><code class="language-sql">
 CREATE OR REPLACE PROCEDURE SETUP_ALTR_SERVICE_ACCOUNT(IS_PARTNER_CONNECT BOOLEAN)
 RETURNS STRING
 LANGUAGE JAVASCRIPT
@@ -231,3 +232,4 @@ AS $$
 
   return storedProcedureReport.callerReport();
 $$;
+</code></pre>
