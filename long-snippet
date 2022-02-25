@@ -81,7 +81,7 @@ AS $$
     return false;
   }
 
-  // https://docs.snowflake.com/en/sql-reference/identifiers-syntax.html
+  <!--// https://docs.snowflake.com/en/sql-reference/identifiers-syntax.html-->
   function delimitIdentifier(identifier) {
     return '"' + identifier.replace(/\"/g, '""') + '"';
   }
