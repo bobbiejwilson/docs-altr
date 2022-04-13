@@ -7,6 +7,9 @@ AS $$
   // ********************************************
   // Stored Procedure Caller Report
   // ********************************************
+  function AltrServiceAccountException(message) {
+    this.message = message;
+  }
 
   function StoredProcedureReport() {
     this.isSuccess = true;
@@ -45,6 +48,7 @@ AS $$
     }
   }
 
+  var RUN_AS_ALTR = false;
   const storedProcedureReport = new StoredProcedureReport();
 
   // ********************************************
@@ -81,7 +85,7 @@ AS $$
     return false;
   }
 
-  <!--// https://docs.snowflake.com/en/sql-reference/identifiers-syntax.html-->
+  // https://docs.snowflake.com/en/sql-reference/identifiers-syntax.html
   function delimitIdentifier(identifier) {
     return '"' + identifier.replace(/\"/g, '""') + '"';
   }
@@ -113,7 +117,9 @@ AS $$
         }
 
         storedProcedureReport.fail('You called this stored procedure with a role that does not exist: ' + ALTR_SERVICE_ROLE_NAME + extraInfo + '.');
-
+        if (RUN_AS_ALTR) {
+          throw new AltrServiceAccountException(storedProcedureReport.callerReport());
+        }
         return false;
       } else {
         // Some other error when executing the grant. Report the
@@ -132,6 +138,7 @@ AS $$
     });
 
     execStatement('GRANT CREATE INTEGRATION ON ACCOUNT TO ROLE ' + delimitedRoleName);
+
     // ********************************************
     // Grant privileges on warehouses to role
     // ********************************************
@@ -173,10 +180,12 @@ AS $$
       execStatement('GRANT SELECT ON FUTURE TABLES IN DATABASE ' + delimitedDatabaseName + ' TO ROLE ' + delimitedRoleName);
       execStatement('GRANT SELECT ON ALL TABLES IN DATABASE ' + delimitedDatabaseName + ' TO ROLE ' + delimitedRoleName);
     }
+
+    execStatement('GRANT IMPORTED PRIVILEGES ON DATABASE SNOWFLAKE TO ROLE ' + delimitedRoleName);
   }
 
   function permissionUser(delimitedRoleName, delimitedUserName, delimitedWarehouseName) { 
-    // Create the role for ALTR and assign the role to SYSADMIN as recommened by
+    // Create the role for ALTR and assign the role to SYSADMIN as recommended by
     // Snowflake to help with troubleshooting and debugging if necessary.
     execStatement('CREATE ROLE IF NOT EXISTS ' + delimitedRoleName);
     execStatement('ALTER ROLE ' + delimitedRoleName + ' SET COMMENT = ' + getDelimitedComment('role'));
@@ -216,10 +225,22 @@ AS $$
   // This script must execute as ACCOUNTADMIN so that
   // we can grant the target role permissions on objects
   // that the target role may not even be able to see.
+  let paramsResultSet = execQuery("SHOW PARAMETERS LIKE '%QUERY_TAG%' IN SESSION");
+  while (paramsResultSet.next()) {
+    let queryTagStr = '';
+    queryTagStr = paramsResultSet.getColumnValueAsString('value');
+    if (!isNullOrEmpty(queryTagStr) && queryTagStr === "ALTR") {
+      RUN_AS_ALTR = true;
+    }
+  }
+  
   try {
     execQuery("USE ROLE ACCOUNTADMIN");
   } catch (error) {
     storedProcedureReport.fail('You must call this stored procedure with a user and role that can assume role ACCOUNTADMIN: ' + error);
+    if (RUN_AS_ALTR) {
+      throw new AltrServiceAccountException(storedProcedureReport.callerReport());
+    }
     return storedProcedureReport.callerReport();
   }
 
@@ -229,5 +250,11 @@ AS $$
     permissionUser('"ALTR_SERVICE_ROLE"', '"ALTR_SERVICE_USER"', '"ALTR_SERVICE_WH"');
   }
 
-  return storedProcedureReport.callerReport();
+  report = storedProcedureReport.callerReport();
+  if (storedProcedureReport.isSuccess) {
+    execStatement("ALTER PROCEDURE IF EXISTS SETUP_ALTR_SERVICE_ACCOUNT(BOOLEAN) SET COMMENT = '" + new Date().toUTCString() + "'");
+  } else if (RUN_AS_ALTR) {
+    throw new AltrServiceAccountException(report)
+  }
+  return report;
 $$;
