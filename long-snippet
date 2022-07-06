@@ -139,6 +139,7 @@ AS $$
 
     execStatement('GRANT CREATE INTEGRATION ON ACCOUNT TO ROLE ' + delimitedRoleName);
     execStatement('GRANT APPLY TAG ON ACCOUNT TO ROLE ' + delimitedRoleName);
+    execStatement('GRANT APPLY ROW ACCESS POLICY ON ACCOUNT TO ROLE ' + delimitedRoleName);
 
     // ********************************************
     // Grant privileges on warehouses to role
@@ -182,6 +183,8 @@ AS $$
       execStatement('GRANT SELECT ON ALL TABLES IN DATABASE ' + delimitedDatabaseName + ' TO ROLE ' + delimitedRoleName);
       execStatement('GRANT CREATE TAG ON FUTURE SCHEMAS IN DATABASE ' + delimitedDatabaseName + ' TO ROLE ' + delimitedRoleName);
       execStatement('GRANT CREATE TAG ON ALL SCHEMAS IN DATABASE ' + delimitedDatabaseName + ' TO ROLE ' + delimitedRoleName);
+      execStatement('GRANT CREATE ROW ACCESS POLICY ON FUTURE SCHEMAS IN DATABASE ' + delimitedDatabaseName + ' TO ROLE ' + delimitedRoleName);
+      execStatement('GRANT CREATE ROW ACCESS POLICY ON ALL SCHEMAS IN DATABASE ' + delimitedDatabaseName + ' TO ROLE ' + delimitedRoleName);
     }
 
     execStatement('GRANT IMPORTED PRIVILEGES ON DATABASE SNOWFLAKE TO ROLE ' + delimitedRoleName);
